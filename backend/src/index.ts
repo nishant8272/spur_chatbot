@@ -1,11 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { v4 as uuidv4 } from 'uuid';
 import { initDatabase, createConversation, getConversation, createMessage, getMessagesByConversationId } from './db';
 import { generateReply } from './llm';
 
 dotenv.config();
+async function generateId() {
+  const { v4: uuidv4 } = await import("uuid");
+  return uuidv4();
+}
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -45,11 +48,11 @@ app.post('/chat/message', async (req, res) => {
     let conversationId = typeof sessionId === 'string' && sessionId.length <= 100 ? sessionId : undefined;
 
     if (!conversationId || !await getConversation(conversationId)) {
-      conversationId = uuidv4();
+      conversationId = await generateId();
       await createConversation(conversationId);
     }
 
-    const userMessageId = uuidv4();
+    const userMessageId = await generateId();
     await createMessage(userMessageId, conversationId, 'user', trimmedMessage);
 
     const history = (await getMessagesByConversationId(conversationId)).map(msg => ({
@@ -59,7 +62,7 @@ app.post('/chat/message', async (req, res) => {
 
     const aiReply = await generateReply(history, trimmedMessage);
 
-    const aiMessageId = uuidv4();
+    const aiMessageId = await generateId();
     await createMessage(aiMessageId, conversationId, 'ai', aiReply);
 
     res.json({
